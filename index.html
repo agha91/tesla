@@ -47,7 +47,7 @@
   <section class="card">
     <details>
       <summary>فحص المتصفح (للتشخيص)</summary>
-      <p id="uaState"></p>
+      <p>معلومات عن هذا المتصفح، تُعرض هنا فقط ولا تُرسل لأي مكان.</p>
       <pre id="ua"></pre>
     </details>
   </section>
@@ -72,8 +72,18 @@
   };
   var TESLA_RE = /Tesla\/|QtCarBrowser|X11; GNU\/Linux/i;
 
-  $('ua').textContent = navigator.userAgent;
-  $('uaState').textContent = TESLA_RE.test(navigator.userAgent) ? '✓ هذا المتصفح يبدو متصفح سيارة تسلا.' : '✗ هذا المتصفح لا يبدو متصفح سيارة تسلا (ستُرفض النسخة التجريبية).';
+  (function () {                                                       // browser facts, to help tell which browser this is
+    var n = navigator, L = ['UA: ' + n.userAgent, 'Tesla marker in UA: ' + (TESLA_RE.test(n.userAgent) ? 'yes' : 'no'),
+      'platform: ' + n.platform, 'screen: ' + screen.width + 'x' + screen.height + '  window: ' + innerWidth + 'x' + innerHeight + '  dpr: ' + devicePixelRatio,
+      'touch points: ' + n.maxTouchPoints, 'cores: ' + n.hardwareConcurrency + '  memory: ' + (n.deviceMemory || '?'), 'language: ' + n.language];
+    if (n.userAgentData) {
+      L.push('brands: ' + n.userAgentData.brands.map(function (b) { return b.brand + '/' + b.version; }).join(', '), 'mobile: ' + n.userAgentData.mobile);
+      $('ua').textContent = L.join('\n');
+      if (n.userAgentData.getHighEntropyValues) n.userAgentData.getHighEntropyValues(['platform', 'platformVersion', 'model', 'architecture', 'uaFullVersion']).then(function (h) {
+        $('ua').textContent = L.join('\n') + '\nhigh-entropy: ' + JSON.stringify(h);
+      }).catch(function () {});
+    } else $('ua').textContent = L.join('\n');
+  })();
 
   function say(m, err) { $('msg').textContent = m || ''; $('msg').className = err ? 'err' : ''; }
   function busy(b) { $('go').disabled = b; $('code').disabled = b; }
