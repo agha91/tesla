@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>محاكاة صوت محرك السيارة</title>
+<!-- Copyright (c) 2026 Eng. Ammar Ihsan (المهندس عمار احسان). All rights reserved. See LICENSE -->
+<style>
+  :root { --bg:#161b26; --panel:#1f2736; --line:#34405a; --ink:#e8ecf4; --dim:#93a0ba; --amber:#ffb347; --red:#ff5a5f; --blue:#7aa2f7; color-scheme: dark; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; min-height:100%; background:var(--bg); color:var(--ink); font-family:"Segoe UI",Tahoma,"Noto Sans Arabic",system-ui,sans-serif; }
+  .top { position:relative; height:clamp(92px,14vh,132px); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 18px #0008; padding:0 12px; }
+  .stripes { position:absolute; top:0; right:0; bottom:0; left:0; background:linear-gradient(#ce1126 0 33.34%, #fff 33.34% 66.67%, #000 66.67%); }
+  .tk { position:absolute; top:50%; transform:translateY(-50%); color:#007a3d; font-weight:800; font-size:clamp(1rem,2.6vw,2rem); font-family:'Noto Naskh Arabic','Amiri','Traditional Arabic',serif; }
+  .tk.l { left:8%; } .tk.r { right:8%; }
+  .plate { position:relative; text-align:center; background:rgba(22,27,38,.84); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid #ffffff2e; border-radius:16px; padding:8px 24px; max-width:min(100%,720px); }
+  h1 { font-size:clamp(1.15rem,2.4vw,1.75rem); margin:0; font-weight:700; line-height:1.3; }
+  .sub { color:#c3cde0; font-size:clamp(.78rem,1.3vw,.95rem); margin:3px 0 0; }
+  @media (max-width:640px) { .tk { display:none; } .plate { padding:6px 12px; } }
+  main { max-width:560px; margin:22px auto; padding:0 14px; display:grid; gap:14px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:18px; }
+  h2 { margin:0 0 6px; font-size:1.25rem; } p { margin:6px 0; color:var(--dim); line-height:1.7; }
+  input { width:100%; margin-top:12px; padding:16px; border-radius:12px; border:2px solid var(--line); background:#151b28; color:var(--ink); font-size:1.4rem; letter-spacing:.12em; text-align:center; direction:ltr; text-transform:uppercase; }
+  input:focus { outline:none; border-color:var(--blue); }
+  button { width:100%; margin-top:12px; padding:16px; border-radius:12px; border:0; background:var(--blue); color:#0d1320; font:inherit; font-size:1.15rem; font-weight:700; cursor:pointer; min-height:58px; }
+  button[disabled] { opacity:.55; cursor:default; }
+  #msg { min-height:1.5em; margin-top:12px; text-align:center; font-size:1rem; color:var(--dim); } #msg.err { color:var(--red); }
+  details { color:var(--dim); font-size:.85rem; } summary { cursor:pointer; color:var(--blue); }
+  pre { direction:ltr; text-align:left; white-space:pre-wrap; word-break:break-all; background:#151b28; border-radius:10px; padding:10px; margin:8px 0 0; font-size:.78rem; color:var(--ink); }
+  .link { background:none; border:0; color:var(--blue); width:auto; min-height:0; padding:4px 0; margin:6px 0 0; font-size:.9rem; font-weight:400; text-decoration:underline; }
+  footer { color:var(--dim); font-size:.78rem; text-align:center; line-height:1.7; }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="stripes" role="img" aria-label="علم العراق"><span class="tk l">الله أكبر</span><span class="tk r">الله أكبر</span></div>
+  <div class="plate"><h1>محاكاة صوت محرك السيارة</h1><p class="sub">اضغط «تشغيل الصوت» ثم قُد: الصوت يتبع سرعتك الحقيقية من الـ GPS.</p></div>
+</header>
+<main>
+  <section class="card" id="form">
+    <h2>تفعيل النسخة التجريبية</h2>
+    <p>أدخل كود التفعيل لتشغيل التطبيق. يلزم اتصال بالإنترنت عند كل تشغيل، وبعد التشغيل يعمل بدون اتصال.</p>
+    <input id="code" type="text" inputmode="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX" maxlength="24">
+    <button id="go" type="button">تفعيل وتشغيل</button>
+    <div id="msg" role="status"></div>
+  </section>
+  <section class="card">
+    <details>
+      <summary>فحص المتصفح (للتشخيص)</summary>
+      <p id="uaState"></p>
+      <pre id="ua"></pre>
+    </details>
+  </section>
+  <footer>
+    <div>© 2026 المهندس عمار احسان — جميع الحقوق محفوظة. لا يجوز نسخ المشروع أو أي جزء منه دون إذن خطي من المالك.</div>
+    <div>موقعك وسرعتك يُعالَجان داخل المتصفح فقط ولا يُرسلان إلى أي مكان؛ الخادم يستلم كود التفعيل فقط.</div>
+  </footer>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var API = window.API_URL, STORE = 'ts.code';
+  var MSG = {
+    invalid_code: 'كود التفعيل غير صحيح.',
+    expired: 'انتهت فترة التجربة.',
+    not_tesla: 'هذا التطبيق يعمل على متصفح سيارات تسلا فقط.',
+    config: 'الخادم غير مُهيّأ بعد. حاول لاحقاً.',
+    bad_request: 'طلب غير صالح.'
+  };
+  var TESLA_RE = /Tesla\/|QtCarBrowser|X11; GNU\/Linux/i;
+
+  $('ua').textContent = navigator.userAgent;
+  $('uaState').textContent = TESLA_RE.test(navigator.userAgent) ? '✓ هذا المتصفح يبدو متصفح سيارة تسلا.' : '✗ هذا المتصفح لا يبدو متصفح سيارة تسلا (ستُرفض النسخة التجريبية).';
+
+  function say(m, err) { $('msg').textContent = m || ''; $('msg').className = err ? 'err' : ''; }
+  function busy(b) { $('go').disabled = b; $('code').disabled = b; }
+  function bytes(b64) { var s = atob(b64), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+  function save(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+  function load(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function drop(k) { try { localStorage.removeItem(k); } catch (e) {} }
+  function fail(code) { var e = new Error(code); e.known = true; return e; }
+
+  function unlock(code) {
+    busy(true); say('جارٍ التحقق…');
+    if (!API || /YOUR-WORKER/.test(API)) { busy(false); say('لم يُضبط عنوان الخادم في config.js.', true); return Promise.resolve(false); }
+    var info;
+    return fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: code }) })
+      .then(function (r) { return r.json().catch(function () { return { ok: false, error: 'bad_request' }; }); })
+      .then(function (j) {
+        if (!j.ok) throw fail(j.error);
+        info = j; say('تم التحقق، جارٍ تحميل التطبيق…');
+        return fetch('app.enc', { cache: 'no-cache' });
+      })
+      .then(function (r) { if (!r.ok) throw fail('download'); return r.arrayBuffer(); })
+      .then(function (buf) {
+        var data = new Uint8Array(buf);
+        return crypto.subtle.importKey('raw', bytes(info.key), { name: 'AES-GCM' }, false, ['decrypt']).then(function (key) {
+          return crypto.subtle.decrypt({ name: 'AES-GCM', iv: data.slice(0, 12) }, key, data.slice(12));
+        }).catch(function () { throw fail('decrypt'); });
+      })
+      .then(function (plain) {
+        var html = new TextDecoder('utf-8').decode(plain);
+        save(STORE, code);
+        try { sessionStorage.setItem('ts.mode', info.admin ? 'admin' : 'trial'); sessionStorage.setItem('ts.ends', String(info.endsAt)); } catch (e) {}
+        document.open(); document.write(html); document.close();         // replaces this page with the app
+        return true;
+      })
+      .catch(function (e) {
+        busy(false);
+        if (e && e.known) {
+          if (e.message === 'invalid_code' || e.message === 'expired') drop(STORE);
+          say(MSG[e.message] || (e.message === 'decrypt' ? 'تعذّر فك التشفير. أعد المحاولة بعد دقيقة (قد يكون الموقع قيد التحديث).' : 'تعذّر تحميل التطبيق. أعد المحاولة.'), true);
+        } else say('تعذّر الاتصال بالخادم. تأكد من الإنترنت ثم أعد المحاولة.', true);
+        return false;
+      });
+  }
+
+  $('go').addEventListener('click', function () { var c = $('code').value.trim(); if (c) unlock(c); else say('اكتب كود التفعيل.', true); });
+  $('code').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('go').click(); });
+
+  var saved = load(STORE);
+  if (saved && location.search.indexOf('reset') < 0) { $('code').value = saved; unlock(saved); }
+})();
+</script>
+</body>
+</html>
