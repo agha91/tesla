@@ -114,7 +114,7 @@
       .then(function (plain) {
         var html = new TextDecoder('utf-8').decode(plain);
         save(STORE, code);
-        try { sessionStorage.setItem('ts.mode', info.admin ? 'admin' : 'trial'); sessionStorage.setItem('ts.ends', String(info.endsAt)); } catch (e) {}
+        try { sessionStorage.setItem('ts.mode', info.admin ? 'admin' : 'trial'); sessionStorage.setItem('ts.ends', String(info.endsAt)); sessionStorage.setItem('ts.k', info.key); } catch (e) {}
         document.open(); document.write(html); document.close();         // replaces this page with the app
         return true;
       })
