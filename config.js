@@ -5,5 +5,7 @@ window.MAP_CFG = {
   tile: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   search: 'https://nominatim.openstreetmap.org/search',
-  route: 'https://router.project-osrm.org/route/v1/driving'
+  route: 'https://router.project-osrm.org/route/v1/driving',
+  // Offline map files (made with build_offline.py). A folder next to index.html, or any full https address that allows CORS.
+  data: 'data/'
 };
