@@ -15,3 +15,5 @@ ARISING FROM THE USE OF THE WORK.
 تعديله أو توزيعه أو إعادة نشره دون إذن خطي مسبق من المالك.
 
 The bundled game "Super Mario" (game.enc) is third-party content (Nintendo characters and the PlayMario code). It is not owned by the author of this Work and is not covered by this license.
+
+The map uses Leaflet (c) Vladimir Agafonkin, BSD-2-Clause, and OpenStreetMap data (c) OpenStreetMap contributors, available under the ODbL (openstreetmap.org/copyright). Those are not covered by this license.
