@@ -7,5 +7,8 @@ window.MAP_CFG = {
   search: 'https://nominatim.openstreetmap.org/search',
   route: 'https://router.project-osrm.org/route/v1/driving',
   // Offline map files (made with build_offline.py). A folder next to index.html, or any full https address that allows CORS.
-  data: 'data/'
+  data: 'data/',
+  // Arabic voice from the internet (Google Cloud Text-to-Speech). Put your own API key between the quotes.
+  // Restrict the key to this website and to the Text-to-Speech API only. Leave it empty to use the browser voice.
+  tts: { key: '', voice: 'ar-XA-Wavenet-B', lang: 'ar-XA', rate: 0.95 }
 };
