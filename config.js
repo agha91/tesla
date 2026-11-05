@@ -12,5 +12,6 @@ window.MAP_CFG = {
   // Restrict the key to this website and to the Text-to-Speech API only. Leave it empty to use the browser voice.
   // Destinations from the phone: the address of your inbox Worker (see the guide). Leave empty to hide the QR code.
   inbox: 'https://tesla-inbox.micro-agha.workers.dev/',
+  yt: { key: 'AIzaSyBV6Jd3MI0DbnmqmdlsZJL2JwNo9EQ9_DE'},
   tts: { key: '', voice: 'ar-XA-Wavenet-B', lang: 'ar-XA', rate: 0.95 }
 };
