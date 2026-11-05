@@ -43,9 +43,16 @@
   else if (!INBOX) { st('خدمة الإرسال غير مفعّلة بعد (inbox في config.js).', 'err'); $('go').disabled = true; }
   try { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { where = { lat: p.coords.latitude, lon: p.coords.longitude }; }, function () {}, { maximumAge: 600000, timeout: 8000 }); } catch (e) {}
   function hav(a, b, c, d) { var r = Math.PI / 180, x = Math.sin((c - a) * r / 2), y = Math.sin((d - b) * r / 2); return 12742e3 * Math.asin(Math.sqrt(x * x + Math.cos(a * r) * Math.cos(c * r) * y * y)); }
+  function norm(s) {                                                      // iPhone adds invisible direction marks and may use Arabic digits or commas
+    return String(s || '').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069\u061c]/g, '').replace(/[\u0660-\u0669]/g, function (d) { return d.charCodeAt(0) - 0x660; })
+      .replace(/[\u06f0-\u06f9]/g, function (d) { return d.charCodeAt(0) - 0x6f0; }).replace(/\u066b/g, '.').replace(/[\u060c\uff0c]/g, ',').trim();
+  }
   function coordsIn(s) {                                                  // the place coordinates inside a maps link or plain text
-    var m = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || s.match(/[?&](?:q|ll|query|destination|daddr)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) || s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/^\s*(-?\d{1,2}\.\d+)\s*[,،\s]\s*(-?\d{1,3}\.\d+)\s*$/);
-    return m ? { lat: +m[1], lon: +m[2] } : null;
+    var m = s.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/) || s.match(/[?&](?:q|ll|query|destination|daddr)=(-?\d+\.\d+)(?:,|%2C)\s*(-?\d+\.\d+)/i) || s.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/) || s.match(/^[\s(\[]*(-?\d{1,3}\.\d+)\s*[,;\s]\s*(-?\d{1,3}\.\d+)[\s)\]]*$/);
+    if (!m) return null;
+    var a = +m[1], b = +m[2];
+    if (a >= 38 && a <= 49 && b >= 29 && b <= 38.6) { var t = a; a = b; b = t; }     // written longitude first: swap (Iraq only)
+    return { lat: a, lon: b };
   }
   function nameIn(s) { var m = s.match(/\/place\/([^\/@?]+)/) || s.match(/[?&]q=([^&]+)/); try { return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : ''; } catch (e) { return ''; } }
   function send(lat, lon, name, btn) {
@@ -79,7 +86,7 @@
     }).catch(function () { st('تعذّر البحث. تحقق من الاتصال.', 'err'); });
   }
   function handle(q) {
-    q = q.trim(); if (!q) return; show([]);
+    q = norm(q); if (!q) return; show([]);
     var c = coordsIn(q);
     if (c) { send(c.lat, c.lon, nameIn(q) || 'موقع من الجوال'); return; }
     var um = q.match(/https?:\/\/\S+/i);                                // a shared message: "name + link"
