@@ -16,7 +16,7 @@
   input { flex: 1; min-width: 0; font: inherit; color: inherit; background: transparent; border: 1.5px solid var(--mut); border-radius: 12px; padding: 12px; }
   button { font: inherit; border: 0; border-radius: 12px; padding: 12px 16px; background: var(--pri); color: #fff; font-weight: 600; }
   button:disabled { opacity: .5; }
-  #st { min-height: 1.5em; margin: 8px 2px; font-weight: 600; } #st.ok { color: var(--ok); } #st.err { color: var(--err); }
+  #st { white-space: pre-wrap; word-break: break-all; min-height: 1.5em; margin: 8px 2px; font-weight: 600; } #st.ok { color: var(--ok); } #st.err { color: var(--err); }
   .res { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(128,128,128,.25); } .res:first-child { border-top: 0; }
   .res .t { flex: 1; min-width: 0; } .res b { display: block; } .res small { color: var(--mut); }
   .hint { color: var(--mut); font-size: 14px; }
@@ -36,7 +36,7 @@
   var $ = function (i) { return document.getElementById(i); };
   var CFG = window.MAP_CFG || {}, INBOX = String(CFG.inbox || '').replace(/\/+$/, ''), SEARCH = CFG.search || 'https://nominatim.openstreetmap.org/search';
   var code = decodeURIComponent(location.hash.replace(/^#/, '')).toLowerCase();
-  var okCode = /^[a-z0-9]{8,24}$/.test(code), where = null;
+  var dbg = '', okCode = /^[a-z0-9]{8,24}$/.test(code), where = null;
   function st(t, c) { var e = $('st'); e.textContent = t || ''; e.className = c || ''; }
   if (!okCode) { st('امسح رمز QR من شاشة السيارة ليتم الربط.', 'err'); $('go').disabled = true; }
   else if (!INBOX) { st('خدمة الإرسال غير مفعّلة بعد (inbox في config.js).', 'err'); $('go').disabled = true; }
@@ -69,7 +69,7 @@
     fetch(url).then(function (r) { return r.json(); }).then(function (a) {
       var l = (a || []).map(function (x) { var n = x.name || String(x.display_name || '').split(',')[0]; return { lat: +x.lat, lon: +x.lon, name: n || q, sub: String(x.display_name || '').split(',').slice(1, 3).join('،').trim() }; });
       if (where) l.sort(function (a, b) { return hav(where.lat, where.lon, a.lat, a.lon) - hav(where.lat, where.lon, b.lat, b.lon); });
-      show(l); st(l.length ? 'اختر الوجهة ثم اضغط «أرسل».' : 'لا نتائج. جرّب اسماً آخر.', l.length ? '' : 'err');
+      show(l); st(l.length ? 'اختر الوجهة ثم اضغط «أرسل».' : 'لا نتائج. جرّب اسماً آخر، أو الصق رابط المكان الكامل.' + (dbg ? '\n[' + dbg + ']' : ''), l.length ? '' : 'err');
     }).catch(function () { st('تعذّر البحث. تحقق من الاتصال.', 'err'); });
   }
   function handle(q) {
@@ -82,12 +82,13 @@
       var c1 = coordsIn(link); if (c1) { send(c1.lat, c1.lon, nameIn(link) || pre || 'موقع من الجوال'); return; }
       st('جارٍ قراءة الرابط…');
       fetch(INBOX + '/resolve?u=' + encodeURIComponent(link)).then(function (r) { return r.json(); }).then(function (j) {
-        var full = (j && j.url) || link, c2 = (j && j.lat != null && j.lon != null) ? { lat: +j.lat, lon: +j.lon } : coordsIn(full);
+        var full = (j && j.url) || link, fromPage = j && j.lat != null && j.lon != null, c2 = fromPage ? { lat: +j.lat, lon: +j.lon } : coordsIn(full);
         var nm = nameIn(full) || (j && j.title && !/^Google/i.test(j.title) ? String(j.title).replace(/\s*[-–·].*Google.*$/i, '') : '') || pre;
-        if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال');
-        else if (nm) { $('q').value = nm; search(nm); }
-        else st('لم أجد موقعاً داخل الرابط. اكتب اسم المكان.', 'err');
-      }).catch(function () { if (pre) { $('q').value = pre; search(pre); } else st('تعذّر قراءة الرابط. اكتب اسم المكان.', 'err'); });
+        var info = 'الخادم v' + ((j && j.v) || 'قديم') + ' | استجابة ' + (j && j.status) + ' | حجم الصفحة ' + (j && j.len) + ' | ' + String(full).slice(0, 90);
+        if (c2 && fromPage) { show([{ lat: c2.lat, lon: c2.lon, name: nm || 'موقع من الجوال', sub: 'من رابط جوجل (' + (j.how || '') + ') — تأكد من المكان' }]); st('وجدت المكان في الرابط. اضغط «أرسل» لتأكيده.'); }
+        else if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال');
+        else { dbg = info; if (nm) { $('q').value = nm; search(nm); } else st('لم أجد موقعاً داخل الرابط. اكتب اسم المكان أو الصق الرابط الكامل (فيه @ وأرقام).\n[' + info + ']', 'err'); }
+      }).catch(function (e) { dbg = 'تعذّر الاتصال بالخادم: ' + (e && e.message); if (pre) { $('q').value = pre; search(pre); } else st('تعذّر قراءة الرابط.\n[' + dbg + ']', 'err'); });
       return;
     }
     search(q);
