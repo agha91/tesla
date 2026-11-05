@@ -55,6 +55,10 @@
       .then(function (x) { if (!x.ok) throw new Error(x.j && x.j.error === 'range' ? 'الموقع خارج العراق' : 'رفض الخادم: ' + (x.j && (x.j.detail || x.j.error) || x.j)); st('✓ أُرسلت الوجهة إلى السيارة: ' + (name || ''), 'ok'); })
       .catch(function (e) { st('تعذّر الإرسال: ' + (e.message || 'تحقق من الاتصال'), 'err'); if (btn) btn.disabled = false; });
   }
+  function clean(n) {                                                    // a readable place name, never a code-like token
+    n = String(n || '').replace(/\s+/g, ' ').trim();
+    return n && n.length <= 80 && !/^-?\d+\.\d+\s*[, ]\s*-?\d+\.\d+$/.test(n) && !(n.length >= 20 && n.indexOf(' ') < 0 && /^[A-Za-z0-9_\-%=.]+$/.test(n)) ? n : 'موقع من خرائط جوجل';
+  }
   var BLOCKED = 'عذراً، لا يمكن تحديد الموقع من هذا الرابط المختصر.\nارجع إلى خرائط جوجل، وضع الدبوس على الشارع الأقرب إلى المكان المطلوب (بالضغط المطوّل على الخريطة)، ثم انسخ الإحداثيات الظاهرة والصقها هنا.';
   function show(list) {
     var o = $('out'); o.innerHTML = ''; o.style.display = list.length ? 'block' : 'none';
@@ -87,8 +91,7 @@
         var full = (j && j.url) || link, fromPage = j && j.lat != null && j.lon != null, c2 = fromPage ? { lat: +j.lat, lon: +j.lon } : coordsIn(full);
         var nm = nameIn(full) || (j && j.title && !/^Google/i.test(j.title) ? String(j.title).replace(/\s*[-–·].*Google.*$/i, '') : '') || pre;
         var info = 'الخادم v' + ((j && j.v) || 'قديم') + ' | استجابة ' + (j && j.status) + ' | حجم الصفحة ' + (j && j.len) + ' | ' + String(full).slice(0, 90);
-        if (c2 && fromPage) { show([{ lat: c2.lat, lon: c2.lon, name: nm || 'موقع من الجوال', sub: 'من رابط جوجل (' + (j.how || '') + ') — تأكد من المكان' }]); st('وجدت المكان في الرابط. اضغط «أرسل» لتأكيده.'); }
-        else if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال');
+        if (c2) send(c2.lat, c2.lon, clean(nm));
         else { dbg = info; blocked = !!(j && j.status === 429); if (nm) { $('q').value = nm; search(nm); } else st(blocked ? BLOCKED : 'لم أجد موقعاً داخل الرابط. اكتب اسم المكان أو الصق الرابط الكامل (فيه @ وأرقام).\n[' + info + ']', 'err'); }
       }).catch(function (e) { dbg = 'تعذّر الاتصال بالخادم: ' + (e && e.message); if (pre) { $('q').value = pre; search(pre); } else st('تعذّر قراءة الرابط.\n[' + dbg + ']', 'err'); });
       return;
