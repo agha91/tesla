@@ -26,8 +26,8 @@
 <h1>أرسل وجهة إلى السيارة</h1>
 <div class="card">
   <div class="row"><input id="q" type="search" placeholder="اسم مكان، أو الصق رابط خرائط جوجل" autocomplete="off" enterkeyhint="search"><button id="go" type="button">بحث</button></div>
-  <div class="row" style="margin-top:8px"><button id="paste" type="button" class="alt">لصق من الحافظة</button><button id="opengo" type="button" class="alt">افتح في جوجل</button><button id="here" type="button" class="alt">موقعي الحالي</button></div>
-  <div class="hint" style="margin-top:8px">يمكنك لصق رابط جوجل الطويل (فيه @ وأرقام)، أو إحداثيات مثل 33.31, 44.36. الروابط المختصرة: اضغط «افتح في جوجل»، ثم انسخ العنوان من شريط المتصفح وعد واضغط «لصق من الحافظة»</div>
+  <div class="row" style="margin-top:8px"><button id="paste" type="button" class="alt">لصق من الحافظة</button><button id="here" type="button" class="alt">موقعي الحالي</button></div>
+  <div class="hint" style="margin-top:8px">الصق رابط جوجل الطويل (فيه @ وأرقام) أو إحداثيات مثل 33.31, 44.36 أو اكتب اسم المكان</div>
 </div>
 <div id="st"></div>
 <div id="out" class="card" style="display:none"></div>
@@ -55,7 +55,7 @@
       .then(function (x) { if (!x.ok) throw new Error(x.j && x.j.error === 'range' ? 'الموقع خارج العراق' : 'رفض الخادم: ' + (x.j && (x.j.detail || x.j.error) || x.j)); st('✓ أُرسلت الوجهة إلى السيارة: ' + (name || ''), 'ok'); })
       .catch(function (e) { st('تعذّر الإرسال: ' + (e.message || 'تحقق من الاتصال'), 'err'); if (btn) btn.disabled = false; });
   }
-  var BLOCKED = 'جوجل يمنع الخادم من قراءة هذا الرابط (رمز 429)، ولا يمكن قراءته من هنا.\nالحلول:\n١) اضغط «افتح في جوجل»، وبعد أن يفتح المكان انسخ العنوان الطويل من شريط المتصفح، ثم عد واضغط «لصق من الحافظة».\n٢) في خرائط جوجل اضغط مطولاً على المكان وانسخ الإحداثيات، والصقها هنا.\n٣) اكتب اسم مكان موجود في الخريطة.';
+  var BLOCKED = 'عذراً، لا يمكن تحديد الموقع من هذا الرابط المختصر.\nارجع إلى خرائط جوجل، وضع الدبوس على الشارع الأقرب إلى المكان المطلوب (بالضغط المطوّل على الخريطة)، ثم انسخ الإحداثيات الظاهرة والصقها هنا.';
   function show(list) {
     var o = $('out'); o.innerHTML = ''; o.style.display = list.length ? 'block' : 'none';
     list.forEach(function (p) {
@@ -100,10 +100,6 @@
     if (!navigator.clipboard || !navigator.clipboard.readText) { st('المتصفح لا يسمح بقراءة الحافظة. الصق النص في الخانة يدوياً.', 'err'); return; }
     navigator.clipboard.readText().then(function (t) { t = String(t || '').trim(); if (!t) { st('الحافظة فارغة.', 'err'); return; } $('q').value = t; handle(t); })
       .catch(function () { st('لم يُسمح بقراءة الحافظة. الصق النص في الخانة يدوياً.', 'err'); });
-  };
-  $('opengo').onclick = function () {                                    // the phone's own browser can open Google links; the long address then shows in its address bar
-    var m = $('q').value.match(/https?:\/\/\S+/i); if (!m) { st('الصق رابط جوجل أولاً في الخانة.', 'err'); return; }
-    window.open(m[0], '_blank'); st('بعد أن يفتح المكان، انسخ العنوان من شريط المتصفح، ثم ارجع واضغط «لصق من الحافظة».');
   };
   $('here').onclick = function () {                                      // send the phone's own position
     if (!okCode || !INBOX) return;
