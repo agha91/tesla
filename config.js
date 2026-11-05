@@ -10,5 +10,7 @@ window.MAP_CFG = {
   data: 'data/',
   // Arabic voice from the internet (Google Cloud Text-to-Speech). Put your own API key between the quotes.
   // Restrict the key to this website and to the Text-to-Speech API only. Leave it empty to use the browser voice.
+  // Destinations from the phone: the address of your inbox Worker (see the guide). Leave empty to hide the QR code.
+  inbox: 'https://tesla-inbox.micro-agha.workers.dev/',
   tts: { key: '', voice: 'ar-XA-Wavenet-B', lang: 'ar-XA', rate: 0.95 }
 };
