@@ -15,7 +15,7 @@
   .row { display: flex; gap: 8px; }
   input { flex: 1; min-width: 0; font: inherit; color: inherit; background: transparent; border: 1.5px solid var(--mut); border-radius: 12px; padding: 12px; }
   button { font: inherit; border: 0; border-radius: 12px; padding: 12px 16px; background: var(--pri); color: #fff; font-weight: 600; }
-  button:disabled { opacity: .5; }
+  button:disabled { opacity: .5; } button.alt { flex: 1; background: transparent; color: var(--pri); border: 1.5px solid var(--pri); padding: 10px 6px; font-size: 15px; }
   #st { white-space: pre-wrap; word-break: break-all; min-height: 1.5em; margin: 8px 2px; font-weight: 600; } #st.ok { color: var(--ok); } #st.err { color: var(--err); }
   .res { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid rgba(128,128,128,.25); } .res:first-child { border-top: 0; }
   .res .t { flex: 1; min-width: 0; } .res b { display: block; } .res small { color: var(--mut); }
@@ -26,7 +26,8 @@
 <h1>أرسل وجهة إلى السيارة</h1>
 <div class="card">
   <div class="row"><input id="q" type="search" placeholder="اسم مكان، أو الصق رابط خرائط جوجل" autocomplete="off" enterkeyhint="search"><button id="go" type="button">بحث</button></div>
-  <div class="hint" style="margin-top:8px">يمكنك أيضاً لصق رابط «مشاركة» من خرائط جوجل، أو إحداثيات مثل 33.31, 44.36</div>
+  <div class="row" style="margin-top:8px"><button id="paste" type="button" class="alt">لصق من الحافظة</button><button id="opengo" type="button" class="alt">افتح في جوجل</button><button id="here" type="button" class="alt">موقعي الحالي</button></div>
+  <div class="hint" style="margin-top:8px">يمكنك لصق رابط جوجل الطويل (فيه @ وأرقام)، أو إحداثيات مثل 33.31, 44.36. الروابط المختصرة: اضغط «افتح في جوجل»، ثم انسخ العنوان من شريط المتصفح وعد واضغط «لصق من الحافظة»</div>
 </div>
 <div id="st"></div>
 <div id="out" class="card" style="display:none"></div>
@@ -36,9 +37,9 @@
   var $ = function (i) { return document.getElementById(i); };
   var CFG = window.MAP_CFG || {}, INBOX = String(CFG.inbox || '').replace(/\/+$/, ''), SEARCH = CFG.search || 'https://nominatim.openstreetmap.org/search';
   var code = decodeURIComponent(location.hash.replace(/^#/, '')).toLowerCase();
-  var dbg = '', okCode = /^[a-z0-9]{8,24}$/.test(code), where = null;
+  var dbg = '', blocked = false, okCode = /^[a-z0-9]{8,24}$/.test(code), where = null;
   function st(t, c) { var e = $('st'); e.textContent = t || ''; e.className = c || ''; }
-  if (!okCode) { st('امسح رمز QR من شاشة السيارة ليتم الربط.', 'err'); $('go').disabled = true; }
+  if (!okCode) { st('امسح رمز QR من شاشة السيارة ليتم الربط.', 'err'); $('go').disabled = true; $('here').disabled = true; $('paste').disabled = true; }
   else if (!INBOX) { st('خدمة الإرسال غير مفعّلة بعد (inbox في config.js).', 'err'); $('go').disabled = true; }
   try { navigator.geolocation && navigator.geolocation.getCurrentPosition(function (p) { where = { lat: p.coords.latitude, lon: p.coords.longitude }; }, function () {}, { maximumAge: 600000, timeout: 8000 }); } catch (e) {}
   function hav(a, b, c, d) { var r = Math.PI / 180, x = Math.sin((c - a) * r / 2), y = Math.sin((d - b) * r / 2); return 12742e3 * Math.asin(Math.sqrt(x * x + Math.cos(a * r) * Math.cos(c * r) * y * y)); }
@@ -54,6 +55,7 @@
       .then(function (x) { if (!x.ok) throw new Error(x.j && x.j.error === 'range' ? 'الموقع خارج العراق' : 'رفض الخادم: ' + (x.j && (x.j.detail || x.j.error) || x.j)); st('✓ أُرسلت الوجهة إلى السيارة: ' + (name || ''), 'ok'); })
       .catch(function (e) { st('تعذّر الإرسال: ' + (e.message || 'تحقق من الاتصال'), 'err'); if (btn) btn.disabled = false; });
   }
+  var BLOCKED = 'جوجل يمنع الخادم من قراءة هذا الرابط (رمز 429)، ولا يمكن قراءته من هنا.\nالحلول:\n١) اضغط «افتح في جوجل»، وبعد أن يفتح المكان انسخ العنوان الطويل من شريط المتصفح، ثم عد واضغط «لصق من الحافظة».\n٢) في خرائط جوجل اضغط مطولاً على المكان وانسخ الإحداثيات، والصقها هنا.\n٣) اكتب اسم مكان موجود في الخريطة.';
   function show(list) {
     var o = $('out'); o.innerHTML = ''; o.style.display = list.length ? 'block' : 'none';
     list.forEach(function (p) {
@@ -69,7 +71,7 @@
     fetch(url).then(function (r) { return r.json(); }).then(function (a) {
       var l = (a || []).map(function (x) { var n = x.name || String(x.display_name || '').split(',')[0]; return { lat: +x.lat, lon: +x.lon, name: n || q, sub: String(x.display_name || '').split(',').slice(1, 3).join('،').trim() }; });
       if (where) l.sort(function (a, b) { return hav(where.lat, where.lon, a.lat, a.lon) - hav(where.lat, where.lon, b.lat, b.lon); });
-      show(l); st(l.length ? 'اختر الوجهة ثم اضغط «أرسل».' : 'لا نتائج. جرّب اسماً آخر، أو الصق رابط المكان الكامل.' + (dbg ? '\n[' + dbg + ']' : ''), l.length ? '' : 'err');
+      show(l); st(l.length ? 'اختر الوجهة ثم اضغط «أرسل».' : (blocked ? BLOCKED : 'لا نتائج. جرّب اسماً آخر، أو الصق رابط المكان الكامل.' + (dbg ? '\n[' + dbg + ']' : '')), l.length ? '' : 'err');
     }).catch(function () { st('تعذّر البحث. تحقق من الاتصال.', 'err'); });
   }
   function handle(q) {
@@ -87,13 +89,29 @@
         var info = 'الخادم v' + ((j && j.v) || 'قديم') + ' | استجابة ' + (j && j.status) + ' | حجم الصفحة ' + (j && j.len) + ' | ' + String(full).slice(0, 90);
         if (c2 && fromPage) { show([{ lat: c2.lat, lon: c2.lon, name: nm || 'موقع من الجوال', sub: 'من رابط جوجل (' + (j.how || '') + ') — تأكد من المكان' }]); st('وجدت المكان في الرابط. اضغط «أرسل» لتأكيده.'); }
         else if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال');
-        else { dbg = info; if (nm) { $('q').value = nm; search(nm); } else st('لم أجد موقعاً داخل الرابط. اكتب اسم المكان أو الصق الرابط الكامل (فيه @ وأرقام).\n[' + info + ']', 'err'); }
+        else { dbg = info; blocked = !!(j && j.status === 429); if (nm) { $('q').value = nm; search(nm); } else st(blocked ? BLOCKED : 'لم أجد موقعاً داخل الرابط. اكتب اسم المكان أو الصق الرابط الكامل (فيه @ وأرقام).\n[' + info + ']', 'err'); }
       }).catch(function (e) { dbg = 'تعذّر الاتصال بالخادم: ' + (e && e.message); if (pre) { $('q').value = pre; search(pre); } else st('تعذّر قراءة الرابط.\n[' + dbg + ']', 'err'); });
       return;
     }
     search(q);
   }
   $('go').onclick = function () { handle($('q').value); };
+  $('paste').onclick = function () {                                     // paste whatever was copied (for example the long address copied from the browser) and send it
+    if (!navigator.clipboard || !navigator.clipboard.readText) { st('المتصفح لا يسمح بقراءة الحافظة. الصق النص في الخانة يدوياً.', 'err'); return; }
+    navigator.clipboard.readText().then(function (t) { t = String(t || '').trim(); if (!t) { st('الحافظة فارغة.', 'err'); return; } $('q').value = t; handle(t); })
+      .catch(function () { st('لم يُسمح بقراءة الحافظة. الصق النص في الخانة يدوياً.', 'err'); });
+  };
+  $('opengo').onclick = function () {                                    // the phone's own browser can open Google links; the long address then shows in its address bar
+    var m = $('q').value.match(/https?:\/\/\S+/i); if (!m) { st('الصق رابط جوجل أولاً في الخانة.', 'err'); return; }
+    window.open(m[0], '_blank'); st('بعد أن يفتح المكان، انسخ العنوان من شريط المتصفح، ثم ارجع واضغط «لصق من الحافظة».');
+  };
+  $('here').onclick = function () {                                      // send the phone's own position
+    if (!okCode || !INBOX) return;
+    if (!navigator.geolocation) { st('الجوال لا يوفّر خدمة الموقع.', 'err'); return; }
+    st('جارٍ تحديد موقعك…');
+    navigator.geolocation.getCurrentPosition(function (p) { show([]); send(p.coords.latitude, p.coords.longitude, 'موقعي الحالي'); },
+      function (e) { st(e && e.code === 1 ? 'لم تسمح للمتصفح بالوصول إلى موقعك. فعّل الإذن من إعدادات المتصفح.' : 'تعذّر تحديد الموقع. حاول مرة أخرى.', 'err'); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 });
+  };
   $('q').addEventListener('keydown', function (e) { if (e.key === 'Enter') handle($('q').value); });
 })();
 </script>
