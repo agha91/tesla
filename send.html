@@ -76,12 +76,18 @@
     q = q.trim(); if (!q) return; show([]);
     var c = coordsIn(q);
     if (c) { send(c.lat, c.lon, nameIn(q) || 'موقع من الجوال'); return; }
-    if (/^https?:\/\//i.test(q)) {                                       // a link: shortened ones are opened by the Worker
+    var um = q.match(/https?:\/\/\S+/i);                                // a shared message: "name + link"
+    if (um) {
+      var link = um[0].replace(/[)\]}>.,،]+$/, ''), pre = q.replace(um[0], '').replace(/\s+/g, ' ').trim();
+      var c1 = coordsIn(link); if (c1) { send(c1.lat, c1.lon, nameIn(link) || pre || 'موقع من الجوال'); return; }
       st('جارٍ قراءة الرابط…');
-      fetch(INBOX + '/resolve?u=' + encodeURIComponent(q)).then(function (r) { return r.json(); }).then(function (j) {
-        var full = (j && j.url) || q, c2 = coordsIn(full), nm = nameIn(full);
-        if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال'); else if (nm) search(nm); else st('لم أجد موقعاً داخل الرابط.', 'err');
-      }).catch(function () { st('تعذّر قراءة الرابط.', 'err'); });
+      fetch(INBOX + '/resolve?u=' + encodeURIComponent(link)).then(function (r) { return r.json(); }).then(function (j) {
+        var full = (j && j.url) || link, c2 = (j && j.lat != null && j.lon != null) ? { lat: +j.lat, lon: +j.lon } : coordsIn(full);
+        var nm = nameIn(full) || (j && j.title && !/^Google/i.test(j.title) ? String(j.title).replace(/\s*[-–·].*Google.*$/i, '') : '') || pre;
+        if (c2) send(c2.lat, c2.lon, nm || 'موقع من الجوال');
+        else if (nm) { $('q').value = nm; search(nm); }
+        else st('لم أجد موقعاً داخل الرابط. اكتب اسم المكان.', 'err');
+      }).catch(function () { if (pre) { $('q').value = pre; search(pre); } else st('تعذّر قراءة الرابط. اكتب اسم المكان.', 'err'); });
       return;
     }
     search(q);
