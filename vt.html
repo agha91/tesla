@@ -1,0 +1,51 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>فحص الخريطة المتجهة</title>
+<style>body{margin:0;font:14px/1.5 system-ui,sans-serif;background:#111;color:#eee;padding:10px}#m{width:320px;height:240px;border:2px solid #4af;margin:8px 0;background:#223}pre{white-space:pre-wrap;word-break:break-all;direction:ltr;text-align:left;background:#000;padding:8px;border-radius:6px;font:12px/1.4 monospace}button{font-size:16px;padding:8px 14px;margin:4px}</style></head><body>
+<h3>فحص الخريطة المتجهة</h3><div>اترك الصفحة مفتوحة نحو 40 ثانية، ثم أرسل لقطة للنص كله (أو اضغط «نسخ»).</div>
+<div id="m"></div><button id="cp" type="button">نسخ النتيجة</button><pre id="o"></pre>
+<script>
+var out = document.getElementById('o'), T0 = Date.now();
+function log(s) { out.textContent += ((Date.now() - T0) / 1000).toFixed(1) + 's ' + s + '\n'; }
+document.getElementById('cp').onclick = function () { try { navigator.clipboard.writeText(out.textContent); } catch (e) {} };
+window.onerror = function (m) { log('JSERR ' + m); };
+log('UA ' + navigator.userAgent); log('online ' + navigator.onLine + ' | cores ' + navigator.hardwareConcurrency);
+function tileXY(lat, lon, z) { var n = Math.pow(2, z), x = Math.floor((lon + 180) / 360 * n), r = lat * Math.PI / 180, y = Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); return [x, y]; }
+function tmo(p, ms, tag) { return new Promise(function (res, rej) { var t = setTimeout(function () { rej(new Error(tag + ' timeout ' + ms + 'ms')); }, ms); p.then(function (v) { clearTimeout(t); res(v); }, function (e) { clearTimeout(t); rej(e); }); }); }
+function getJ(u) { return tmo(fetch(u).then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); }), 15000, u); }
+async function probe(name, styleUrl) {                                      // step 1: can this browser fetch the style, the TileJSON and one real tile?
+  try {
+    var t0 = Date.now(), st = await getJ(styleUrl); log('[' + name + '] style ok ' + (Date.now() - t0) + 'ms, layers ' + st.layers.length + ', sources ' + Object.keys(st.sources).join(','));
+    var key = Object.keys(st.sources).filter(function (k) { return st.sources[k].type === 'vector'; })[0]; if (!key) { log('[' + name + '] no vector source'); return; }
+    var src = st.sources[key], tj = src; if (src.url) { tj = await getJ(src.url); log('[' + name + '] tilejson ok, tiles ' + JSON.stringify(tj.tiles)); }
+    var xy = tileXY(33.31, 44.36, 10), tu = tj.tiles[0].replace('{z}', 10).replace('{x}', xy[0]).replace('{y}', xy[1]), t1 = Date.now();
+    var r = await tmo(fetch(tu), 20000, 'tile'), b = await r.arrayBuffer(), u8 = new Uint8Array(b);
+    log('[' + name + '] tile ' + r.status + ' ' + b.byteLength + 'B ' + (Date.now() - t1) + 'ms type=' + r.headers.get('content-type') + ' enc=' + r.headers.get('content-encoding') + ' first=' + u8[0] + ',' + u8[1] + ' url=' + tu);
+  } catch (e) { log('[' + name + '] FAIL ' + e.message); }
+}
+function load(u, cb) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = u; s.onload = res; s.onerror = function () { rej(new Error('script ' + u)); }; document.head.appendChild(s); }); }
+async function mapTest(name, styleUrl, ms) {                                // step 2: a real MapLibre map, with every event logged
+  return new Promise(function (done) {
+    var n = { err: 0, src: 0, tilesLoaded: 0, tilesErr: 0 }, map;
+    try {
+      document.getElementById('m').innerHTML = '';
+      map = new maplibregl.Map({ container: 'm', style: styleUrl, center: [44.36, 33.31], zoom: 10, attributionControl: false });
+    } catch (e) { log('[' + name + '] map ctor FAIL ' + e.message); return done(); }
+    log('[' + name + '] map created');
+    map.on('error', function (e) { n.err++; if (n.err <= 6) log('[' + name + '] error: ' + ((e.error && e.error.message) || e.message || '?') + (e.sourceId ? ' src=' + e.sourceId : '') + (e.tile ? ' tile=' + e.tile.tileID.key : '')); });
+    map.on('styledata', function () { if (!n.sd) { n.sd = 1; log('[' + name + '] styledata'); } });
+    map.on('load', function () { log('[' + name + '] load event'); });
+    map.on('sourcedata', function (e) { n.src++; if (e.tile) { if (e.tile.state === 'loaded') n.tilesLoaded++; else if (e.tile.state === 'errored') n.tilesErr++; if (n.src < 40 && !n['k' + e.tile.state]) { n['k' + e.tile.state] = 1; log('[' + name + '] tile state ' + e.tile.state + ' src=' + e.sourceId); } } });
+    var iv = setInterval(function () { log('[' + name + '] loaded=' + map.loaded() + ' tilesLoaded=' + map.areTilesLoaded() + ' counts ' + JSON.stringify(n) + ' canvas=' + map.getCanvas().width + 'x' + map.getCanvas().height); }, 4000);
+    setTimeout(function () { clearInterval(iv); var f = 0; try { f = map.queryRenderedFeatures().length; } catch (e) {} log('[' + name + '] END rendered features ' + f + ' ' + JSON.stringify(n)); try { map.remove(); } catch (e) {} done(); }, ms);
+  });
+}
+(async function () {
+  await Promise.all([probe('OpenFreeMap', 'https://tiles.openfreemap.org/styles/liberty'), probe('VersaTiles', 'https://tiles.versatiles.org/assets/styles/colorful/style.json')]);
+  var libs = ['https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js', 'https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.js', 'https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js'], ok = false;
+  for (var i = 0; i < libs.length && !ok; i++) { try { await load(libs[i]); ok = true; log('maplibre loaded from ' + libs[i].split('/')[2] + ' v' + maplibregl.version); } catch (e) { log('lib FAIL ' + e.message); } }
+  if (!ok) return log('no maplibre library could load');
+  log('webgl ' + (function () { try { var c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } })() + ' | supported ' + (maplibregl.supported ? maplibregl.supported() : '?'));
+  await mapTest('OpenFreeMap', 'https://tiles.openfreemap.org/styles/liberty', 14000);
+  await mapTest('VersaTiles', 'https://tiles.versatiles.org/assets/styles/colorful/style.json', 14000);
+  log('DONE');
+})();
+</script></body></html>
