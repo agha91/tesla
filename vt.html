@@ -22,12 +22,12 @@ async function probe(name, styleUrl) {                                      // s
   } catch (e) { log('[' + name + '] FAIL ' + e.message); }
 }
 function load(u, cb) { return new Promise(function (res, rej) { var s = document.createElement('script'); s.src = u; s.onload = res; s.onerror = function () { rej(new Error('script ' + u)); }; document.head.appendChild(s); }); }
-async function mapTest(name, styleUrl, ms) {                                // step 2: a real MapLibre map, with every event logged
+async function mapTest(name, styleUrl, ms, opt) {                                // step 2: a real MapLibre map, with every event logged
   return new Promise(function (done) {
     var n = { err: 0, src: 0, tilesLoaded: 0, tilesErr: 0 }, map;
     try {
       document.getElementById('m').innerHTML = '';
-      map = new maplibregl.Map({ container: 'm', style: styleUrl, center: [44.36, 33.31], zoom: 10, attributionControl: false });
+      var o = { container: 'm', style: styleUrl, center: [44.36, 33.31], zoom: 10, attributionControl: false }; for (var k in (opt || {})) o[k] = opt[k]; map = new maplibregl.Map(o);
     } catch (e) { log('[' + name + '] map ctor FAIL ' + e.message); return done(); }
     log('[' + name + '] map created');
     map.on('error', function (e) { n.err++; if (n.err <= 6) log('[' + name + '] error: ' + ((e.error && e.error.message) || e.message || '?') + (e.sourceId ? ' src=' + e.sourceId : '') + (e.tile ? ' tile=' + e.tile.tileID.key : '')); });
@@ -46,6 +46,8 @@ async function mapTest(name, styleUrl, ms) {                                // s
   log('webgl ' + (function () { try { var c = document.createElement('canvas'); return !!(c.getContext('webgl2') || c.getContext('webgl')); } catch (e) { return false; } })() + ' | supported ' + (maplibregl.supported ? maplibregl.supported() : '?'));
   await mapTest('OpenFreeMap', 'https://tiles.openfreemap.org/styles/liberty', 14000);
   await mapTest('VersaTiles', 'https://tiles.versatiles.org/assets/styles/colorful/style.json', 14000);
+  await mapTest('OFM zoom17.5 pitch60', 'https://tiles.openfreemap.org/styles/liberty', 14000, { zoom: 17.5, pitch: 60, maxPitch: 75, fadeDuration: 150 });
+  await mapTest('OFM zoom14 flat', 'https://tiles.openfreemap.org/styles/liberty', 10000, { zoom: 14 });
   log('DONE');
 })();
 </script></body></html>
